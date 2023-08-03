@@ -1,0 +1,33 @@
+name: CI - Multimedia_VaultDoor_Build
+on:
+  pull_request: # TODO remove once tested
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  cd:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write # Allow GitHub to request an OIDC JWT ID token, to use with aws-actions/configure-aws-credentials
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version-file: '.nvmrc'
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'corretto'
+          java-version: '11'
+          cache: 'sbt'
+
+# TODO enable once AWS Cloudformation stack (under cloudformation/...) is created.
+#      - uses: aws-actions/configure-aws-credentials@v2
+#        with:
+#          aws-region: eu-west-1
+#          role-to-assume: ${{ secrets.GU_MULTIMEDIA_S3_WRITE_ARN }}
+
+      - run: scripts/cd.sh

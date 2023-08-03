@@ -1,0 +1,55 @@
+Number of build steps: 3
+
+Step number: 1
+Name:
+
+Name: npm_commands, Value: install
+test
+run build
+Name: teamcity.build.workingDir, Value: frontend/
+Name: teamcity.step.mode, Value: default
+
+
+Step number: 2
+Name: Scala build
+
+Name: plugin.docker.imageId, Value: andyg42/generic-centos-sbt:6
+Name: script.content, Value: #!/bin/bash -e
+
+declare -x SBT_OPTS="-Dbuild.number=%build.number%"
+cat | sbt << EOF
+clean
+compile
+test
+rpm:packageBin
+exit
+EOF
+Name: teamcity.step.mode, Value: default
+Name: use.custom.script, Value: true
+
+
+Step number: 3
+Name: Upload finished package
+
+Name: script.content, Value: /bin/bash -e
+
+whoami
+
+sudo -S /usr/local/bin/awsconfig_cleanup.sh
+
+unset AWS_ACCESS_KEY_ID
+unset AWS_SECRET_ACCESS_KEY
+
+export AWS_CONFIG_FILE=$(pwd)/temp-credentials.conf
+cat > temp-credentials.conf << EOF
+[profile multimedia-crossaccount]
+role_arn = arn:aws:iam::855023211239:role/deploytools-imagepull
+region = eu-west-1
+credential_source = Ec2InstanceMetadata
+EOF
+
+export AWS_PROFILE=multimedia-crossaccount
+
+aws s3 cp target/rpm/RPMS/noarch/vaultdoor-1.0-${BUILD_NUM}.noarch.rpm s3://gnm-multimedia-deployables/vaultdoor/${BUILD_NUM}/vaultdoor-1.0-${BUILD_NUM}.noarch.rpm --acl public-read
+Name: teamcity.step.mode, Value: default
+Name: use.custom.script, Value: true

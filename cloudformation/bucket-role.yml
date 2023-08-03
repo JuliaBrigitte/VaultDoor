@@ -1,0 +1,51 @@
+---
+Resources:
+  # Resources to provide S3 upload permissions to GitHub Actions.
+  # Permissions are scoped to Riff-Raff buckets.
+  GitHubBucketAccessPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: GitHubBucketAccessPolicy
+      PolicyDocument:
+        Statement:
+          Action:
+            - s3:Put*
+            - s3:AbortMultipartUpload
+          Effect: Allow
+          Resource: arn:aws:s3:::gnm-multimedia-deployables/*
+      Roles:
+        - Ref: GitHubActionsRole
+
+  GitHubActionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRoleWithWebIdentity
+            Principal:
+              Federated: !Ref GitHubOidc
+            Condition:
+              StringLike:
+                # All GitHub Actions running in repositories within the Guardian GitHub organisation.
+                token.actions.githubusercontent.com:sub: repo:guardian/*
+
+  GitHubOidc:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+
+      # A slightly magical string...
+      # This is the thumbprint of `token.actions.githubusercontent.com`
+      # See: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc_verify-thumbprint.html
+      # See: https://github.blog/changelog/2023-06-27-github-actions-update-on-oidc-integration-with-aws/
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+        - 1c58a3a8518e8759bf075b76b750d4f2df264fcd
+
+Outputs:
+  Role:
+    # To be set as an organisational secret in GitHub Actions (`GU_MULTIMEDIA_S3_WRITE_ARN`).
+    Value: !GetAtt GitHubRole.Arn
